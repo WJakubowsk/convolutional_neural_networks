@@ -54,7 +54,10 @@ class Augmentor:
         return cv2.warpAffine(image, M, (cols, rows))
 
     def augment_data(self, image: np.array) -> List[np.array]:
-        """Applies a series of augmentations to the input image, each with a 50% probability of being applied."""
+        """
+        Applies a series of augmentations to the input image, each with a 50% probability of being applied.
+        Returns the list of obtained augmented images.
+        """
         augmentations = [
             self._rotate_image(image),
             self._flip_image(image),
