@@ -2,7 +2,7 @@ import torch
 
 
 class ConvolutionalNeuralNetwork(torch.nn.Module):
-    def __init__(self, in_channels: int = 3, out_channels: int = 30):
+    def __init__(self, in_channels: int = 3, out_channels: int = 10):
         """
         Convolution Neural Network model version with 3 convolutions.
         Args:
@@ -81,3 +81,6 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
             path: str, path where the model will be saved.
         """
         torch.save(self.state_dict(), path)
+
+
+# TODO add other models
