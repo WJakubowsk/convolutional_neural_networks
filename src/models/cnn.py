@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
+from tqdm import tqdm
 
 sys.path.append("..")
 from augmentation.augmentor import Augmentor
@@ -328,13 +329,13 @@ def main(args):
     augmentor = Augmentor()
     n_classes = 10
 
-    for epoch in range(1, n_epochs + 1):
+    for epoch in tqdm(range(1, n_epochs + 1)):
         torch.manual_seed(epoch)
 
         print(f"EPOCH: {epoch}/{n_epochs}")
 
         # train model
-        for batch_x, batch_y in cinic_train:
+        for batch_x, batch_y in tqdm(cinic_train):
             for i in range(len(batch_x)):
                 augmented_images = augmentor.augment_data(batch_x[i])
                 target_one_hot = F.one_hot(batch_y[i], n_classes).float()
@@ -345,7 +346,7 @@ def main(args):
         correct = 0
         total = 0
         with torch.no_grad():
-            for batch_x, batch_y in cinic_valid:
+            for batch_x, batch_y in tqdm(cinic_valid):
                 for i in range(len(batch_x)):
                     outputs = model.predict(batch_x[i])
                     total += batch_y.size(0)
@@ -356,7 +357,7 @@ def main(args):
         y_true = []
         y_pred = []
         with torch.no_grad():
-            for batch_x, batch_y in cinic_test:
+            for batch_x, batch_y in tqdm(cinic_test):
                 for i in range(len(batch_x)):
                     outputs = model.predict(batch_x[i])
                     y_true.extend(batch_y[i].unsqueeze(0).numpy())
