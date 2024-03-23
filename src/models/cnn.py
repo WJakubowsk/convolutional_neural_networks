@@ -1,6 +1,4 @@
 import sys
-
-sys.path.append("..")
 import argparse
 import pandas as pd
 import seaborn as sns
@@ -8,6 +6,8 @@ import matplotlib.pyplot as plt
 import torch
 import torchvision
 import torchvision.transforms as transforms
+
+sys.path.append("..")
 from augmentation.augmentor import Augmentor
 
 
@@ -278,7 +278,7 @@ def main(args):
         raise ValueError("Model not found.")
 
     # load data
-    cinic_directory = args.cinic_directory  #'../../data/'
+    cinic_directory = args.cinic_directory
     cinic_mean = [0.47889522, 0.47227842, 0.43047404]
     cinic_std = [0.24205776, 0.23828046, 0.25874835]
     cinic_train = torch.utils.data.DataLoader(
@@ -294,6 +294,20 @@ def main(args):
         batch_size=128,
         shuffle=True,
     )
+
+    cinic_valid = torch.utils.data.DataLoader(
+        torchvision.datasets.ImageFolder(
+            cinic_directory + "valid",
+            transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=cinic_mean, std=cinic_std),
+                ]
+            ),
+        ),
+        batch_size=128,
+    )
+
     cinic_test = torch.utils.data.DataLoader(
         torchvision.datasets.ImageFolder(
             cinic_directory + "test",
@@ -310,56 +324,52 @@ def main(args):
     # train model
     n_epochs = args.n_epochs
     augmentor = Augmentor()
+
     for epoch in range(1, n_epochs + 1):
         torch.manual_seed(epoch)
 
         print(f"EPOCH: {epoch}/{n_epochs}")
 
-        train_loss = 0.0
-
-        for batch_idx, sample in enumerate(cinic_train):
-            inputs_list = augmentor.augment_data(sample["image"])
-            labels = sample["label"]
-            for input in inputs_list:
-                model.fit(input, labels)
-                loss = model.loss
-                train_loss += loss.item()
-            if batch_idx % 10 == 0:
-                print(f"Batch: {batch_idx}, Train Loss: {loss.item()}")
-        print(f"Train Loss: {train_loss}")
+        for batch_x, batch_y in cinic_train:
+            for i in range(len(batch_x)):
+                batch_x[i] = augmentor.augment_data(batch_x[i])
+                model.fit(batch_x[i], batch_y[i], epochs=1, lr=0.001)
 
         # evaluate model
-        # accuracy
         correct = 0
         total = 0
         with torch.no_grad():
-            for sample in cinic_test:
-                inputs = sample["image"]
-                labels = sample["label"]
-                outputs = model.predict(inputs)
-                total += labels.size(0)
-                correct += (outputs == labels).sum().item()
+            for batch_x, batch_y in cinic_valid:
+                for i in range(len(batch_x)):
+                    outputs = model.predict(batch_x[i])
+                    total += batch_y[i].size(0)
+                    correct += (outputs == batch_y[i]).sum().item()
+
         print(f"Accuracy: {100 * correct / total}")
-        # confusion matrix
+
         y_true = []
         y_pred = []
         with torch.no_grad():
-            for sample in cinic_test:
-                inputs = sample["image"]
-                labels = sample["label"]
-                outputs = model.predict(inputs)
-                y_true.extend(labels.numpy())
-                y_pred.extend(outputs.numpy())
+            for batch_x, batch_y in cinic_test:
+                for i in range(len(batch_x)):
+                    outputs = model.predict(batch_x[i])
+                    y_true.extend(batch_y[i].numpy())
+                    y_pred.extend(outputs.numpy())
         confusion_matrix = pd.crosstab(
             pd.Series(y_true, name="Actual"),
             pd.Series(y_pred, name="Predicted"),
             margins=True,
         )
-        print("confusion_matrix", confusion_matrix)
         # plot confusion matrix
         plt.figure(figsize=(10, 7))
         sns.heatmap(confusion_matrix, annot=True)
         plt.savefig("confusion_matrix.png")
+
+        # save confusion matrix and accuracy to file
+        confusion_matrix.to_csv(model + seed + "confusion_matrix.csv")
+        with open("accuracy.txt", "w") as f:
+            f.write(f"{model},{seed},{100 * correct / total}")
+
         # save model
         model.save(model + seed + "model.pth")
 

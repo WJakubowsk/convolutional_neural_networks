@@ -6,7 +6,7 @@ from typing import List
 
 def randomize(func):
     def wrapper(*args, **kwargs):
-        if random.random() < 0.5:
+        if random.random() < 0.2:
             return func(*args, **kwargs)
         else:
             return None
