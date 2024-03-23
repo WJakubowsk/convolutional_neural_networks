@@ -59,6 +59,7 @@ class Augmentor:
         Returns the list of obtained augmented images.
         """
         augmentations = [
+            image,
             self._rotate_image(image),
             self._flip_image(image),
             self._sharpen_image(image),
