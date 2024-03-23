@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import random
+import torch
 from typing import List
 
 
@@ -53,11 +54,12 @@ class Augmentor:
         M = np.float32([[1, 0, x], [0, 1, y]])
         return cv2.warpAffine(image, M, (cols, rows))
 
-    def augment_data(self, image: np.array) -> List[np.array]:
+    def augment_data(self, image: torch.Tensor) -> List[torch.Tensor]:
         """
-        Applies a series of augmentations to the input image, each with a 50% probability of being applied.
+        Applies a series of augmentations to the input image, each with a cterain probability of being applied.
         Returns the list of obtained augmented images.
         """
+        image = image.cpu().numpy()
         augmentations = [
             image,
             self._rotate_image(image),
@@ -65,6 +67,15 @@ class Augmentor:
             self._sharpen_image(image),
             self._blur_image(image),
             self._brighten_image(image),
-            self._translate_image(image),
+            # self._translate_image(image),
         ]
-        return list(filter(lambda x: x is not None, augmentations))
+        torch_augmentations = []
+        for array in augmentations:
+            if array is None:
+                continue
+            # Make a copy of the NumPy array to ensure positive strides
+            array_copy = array.copy()
+            # Convert the copied array to a PyTorch tensor
+            torch_tensor = torch.tensor(array_copy).float()
+            torch_augmentations.append(torch_tensor)
+        return torch_augmentations

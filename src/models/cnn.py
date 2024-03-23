@@ -4,6 +4,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import torch
+import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 
@@ -68,8 +69,8 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         for epoch in range(epochs):
             optimizer.zero_grad()
-            output = self.forward(x)
-            loss = criterion(output, y)
+            output = self.forward(x).squeeze()
+            loss = criterion(output.unsqueeze(0), y.unsqueeze(0))
             loss.backward()
             optimizer.step()
             print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
@@ -96,7 +97,7 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
 
 
 class ConvolutionalNeuralNetwork2(torch.nn.Module):
-    def __init__(self, in_channels: int = 3, out_channels: int = 30):
+    def __init__(self, in_channels: int = 3, out_channels: int = 10):
         """
         Convolution Neural Network model version with 2 convolutions.
         Args:
@@ -108,7 +109,7 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
             in_channels, 16, kernel_size=3, stride=1, padding=1
         )
         self.conv2 = torch.nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1)
-        self.fc1 = torch.nn.Linear(32 * 8 * 8, 128)
+        self.fc1 = torch.nn.Linear(32 * 4 * 4, 128)
         self.fc2 = torch.nn.Linear(128, out_channels)
         self.relu = torch.nn.ReLU()
         self.softmax = torch.nn.Softmax(dim=1)
@@ -127,7 +128,7 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
         x = self.avgpool(x)
         x = self.relu(self.conv2(x))
         x = self.avgpool(x)
-        x = x.view(-1, 32 * 8 * 8)
+        x = x.view(-1, 32 * 4 * 4)
         x = self.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
@@ -149,8 +150,8 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         for epoch in range(epochs):
             optimizer.zero_grad()
-            output = self.forward(x)
-            loss = criterion(output, y)
+            output = self.forward(x).squeeze()
+            loss = criterion(output.unsqueeze(0), y.unsqueeze(0))
             loss.backward()
             optimizer.step()
             print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
@@ -177,7 +178,7 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
 
 
 class ConvolutionalNeuralNetwork3(torch.nn.Module):
-    def __init__(self, in_channels: int = 3, out_channels: int = 30):
+    def __init__(self, in_channels: int = 3, out_channels: int = 10):
         """
         Convolution Neural Network model with Leaky ReLU activation function.
         Args:
@@ -193,7 +194,7 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         self.bn2 = torch.nn.BatchNorm2d(64)
         self.conv3 = torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
         self.bn3 = torch.nn.BatchNorm2d(128)
-        self.fc1 = torch.nn.Linear(128 * 8 * 8, 256)
+        self.fc1 = torch.nn.Linear(128 * 4 * 4, 256)
         self.fc2 = torch.nn.Linear(256, out_channels)
         self.leakyrelu = torch.nn.LeakyReLU(negative_slope=0.01)
         self.softmax = torch.nn.Softmax(dim=1)
@@ -208,17 +209,17 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         Returns:
             x: torch.Tensor, output tensor.
         """
+        x = x.unsqueeze(0)
         x = self.leakyrelu(self.bn1(self.conv1(x)))
         x = self.avgpool(x)
         x = self.leakyrelu(self.bn2(self.conv2(x)))
         x = self.avgpool(x)
         x = self.leakyrelu(self.bn3(self.conv3(x)))
         x = self.avgpool(x)
-        x = x.view(-1, 128 * 8 * 8)
+        x = x.view(-1, 128 * 4 * 4)
         x = self.leakyrelu(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
-        x = self.softmax(x)
         return x
 
     def fit(
@@ -233,11 +234,11 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
             lr: float, learning rate.
         """
         criterion = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(self.parameters(), lr=lr, momentum=0.9)
+        optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         for epoch in range(epochs):
             optimizer.zero_grad()
-            output = self.forward(x)
-            loss = criterion(output, y)
+            output = self.forward(x).squeeze()
+            loss = criterion(output.unsqueeze(0), y.unsqueeze(0))
             loss.backward()
             optimizer.step()
             print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
@@ -306,6 +307,7 @@ def main(args):
             ),
         ),
         batch_size=128,
+        shuffle=True,
     )
 
     cinic_test = torch.utils.data.DataLoader(
@@ -319,41 +321,45 @@ def main(args):
             ),
         ),
         batch_size=128,
+        shuffle=True,
     )
 
-    # train model
     n_epochs = args.n_epochs
     augmentor = Augmentor()
+    n_classes = 10
 
     for epoch in range(1, n_epochs + 1):
         torch.manual_seed(epoch)
 
         print(f"EPOCH: {epoch}/{n_epochs}")
 
+        # train model
         for batch_x, batch_y in cinic_train:
             for i in range(len(batch_x)):
-                batch_x[i] = augmentor.augment_data(batch_x[i])
-                model.fit(batch_x[i], batch_y[i], epochs=1, lr=0.001)
+                augmented_images = augmentor.augment_data(batch_x[i])
+                target_one_hot = F.one_hot(batch_y[i], n_classes).float()
+                for j in range(len(augmented_images)):
+                    model.fit(augmented_images[j], target_one_hot, epochs=1, lr=0.001)
 
-        # evaluate model
+        # validate model
         correct = 0
         total = 0
         with torch.no_grad():
             for batch_x, batch_y in cinic_valid:
                 for i in range(len(batch_x)):
                     outputs = model.predict(batch_x[i])
-                    total += batch_y[i].size(0)
-                    correct += (outputs == batch_y[i]).sum().item()
+                    total += batch_y.size(0)
+                    correct += (outputs == batch_y[i].unsqueeze(0)).sum().item()
 
-        print(f"Accuracy: {100 * correct / total}")
-
+        print(f"Accuracy on validation: {100 * correct / total}")
+        # test model
         y_true = []
         y_pred = []
         with torch.no_grad():
             for batch_x, batch_y in cinic_test:
                 for i in range(len(batch_x)):
                     outputs = model.predict(batch_x[i])
-                    y_true.extend(batch_y[i].numpy())
+                    y_true.extend(batch_y[i].unsqueeze(0).numpy())
                     y_pred.extend(outputs.numpy())
         confusion_matrix = pd.crosstab(
             pd.Series(y_true, name="Actual"),
@@ -363,15 +369,15 @@ def main(args):
         # plot confusion matrix
         plt.figure(figsize=(10, 7))
         sns.heatmap(confusion_matrix, annot=True)
-        plt.savefig("confusion_matrix.png")
+        plt.savefig(f"{args.model}-{seed}-confusion_matrix.png")
 
         # save confusion matrix and accuracy to file
-        confusion_matrix.to_csv(model + seed + "confusion_matrix.csv")
+        confusion_matrix.to_csv(f"{args.model}-{seed}-confusion_matrix.csv")
         with open("accuracy.txt", "w") as f:
-            f.write(f"{model},{seed},{100 * correct / total}")
+            f.write(f"{args.model},{seed},{100 * correct / total}")
 
         # save model
-        model.save(model + seed + "model.pth")
+        model.save(f"{args.model}-{seed}-model.pth")
 
 
 if __name__ == "__main__":
