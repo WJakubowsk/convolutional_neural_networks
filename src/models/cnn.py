@@ -1,4 +1,14 @@
+import sys
+
+sys.path.append("..")
+import argparse
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 import torch
+import torchvision
+import torchvision.transforms as transforms
+from augmentation.augmentor import Augmentor
 
 
 class ConvolutionalNeuralNetwork(torch.nn.Module):
@@ -175,7 +185,9 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
             out_channels: int, number of output classes.
         """
         super(ConvolutionalNeuralNetwork3, self).__init__()
-        self.conv1 = torch.nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = torch.nn.Conv2d(
+            in_channels, 32, kernel_size=3, stride=1, padding=1
+        )
         self.bn1 = torch.nn.BatchNorm2d(32)
         self.conv2 = torch.nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
         self.bn2 = torch.nn.BatchNorm2d(64)
@@ -208,8 +220,10 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         x = self.fc2(x)
         x = self.softmax(x)
         return x
-    
-    def fit(self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10, lr: float = 0.001):
+
+    def fit(
+        self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10, lr: float = 0.001
+    ):
         """
         Fit the model to the data.
         Args:
@@ -248,3 +262,115 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         """
         torch.save(self.state_dict(), path)
 
+
+def main(args):
+    # set seed
+    seed = args.seed
+    torch.manual_seed(seed)
+
+    if args.model == "cnn":
+        model = ConvolutionalNeuralNetwork()
+    elif args.model == "cnn2":
+        model = ConvolutionalNeuralNetwork2()
+    elif args.model == "cnn3":
+        model = ConvolutionalNeuralNetwork3()
+    else:
+        raise ValueError("Model not found.")
+
+    # load data
+    cinic_directory = args.cinic_directory  #'../../data/'
+    cinic_mean = [0.47889522, 0.47227842, 0.43047404]
+    cinic_std = [0.24205776, 0.23828046, 0.25874835]
+    cinic_train = torch.utils.data.DataLoader(
+        torchvision.datasets.ImageFolder(
+            cinic_directory + "train",
+            transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=cinic_mean, std=cinic_std),
+                ]
+            ),
+        ),
+        batch_size=128,
+        shuffle=True,
+    )
+    cinic_test = torch.utils.data.DataLoader(
+        torchvision.datasets.ImageFolder(
+            cinic_directory + "test",
+            transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=cinic_mean, std=cinic_std),
+                ]
+            ),
+        ),
+        batch_size=128,
+    )
+
+    # train model
+    n_epochs = args.n_epochs
+    augmentor = Augmentor()
+    for epoch in range(1, n_epochs + 1):
+        torch.manual_seed(epoch)
+
+        print(f"EPOCH: {epoch}/{n_epochs}")
+
+        train_loss = 0.0
+
+        for batch_idx, sample in enumerate(cinic_train):
+            inputs_list = augmentor.augment_data(sample["image"])
+            labels = sample["label"]
+            for input in inputs_list:
+                model.fit(input, labels)
+                loss = model.loss
+                train_loss += loss.item()
+            if batch_idx % 10 == 0:
+                print(f"Batch: {batch_idx}, Train Loss: {loss.item()}")
+        print(f"Train Loss: {train_loss}")
+
+        # evaluate model
+        # accuracy
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for sample in cinic_test:
+                inputs = sample["image"]
+                labels = sample["label"]
+                outputs = model.predict(inputs)
+                total += labels.size(0)
+                correct += (outputs == labels).sum().item()
+        print(f"Accuracy: {100 * correct / total}")
+        # confusion matrix
+        y_true = []
+        y_pred = []
+        with torch.no_grad():
+            for sample in cinic_test:
+                inputs = sample["image"]
+                labels = sample["label"]
+                outputs = model.predict(inputs)
+                y_true.extend(labels.numpy())
+                y_pred.extend(outputs.numpy())
+        confusion_matrix = pd.crosstab(
+            pd.Series(y_true, name="Actual"),
+            pd.Series(y_pred, name="Predicted"),
+            margins=True,
+        )
+        print("confusion_matrix", confusion_matrix)
+        # plot confusion matrix
+        plt.figure(figsize=(10, 7))
+        sns.heatmap(confusion_matrix, annot=True)
+        plt.savefig("confusion_matrix.png")
+        # save model
+        model.save(model + seed + "model.pth")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, default="cnn", help="Model type.")
+    parser.add_argument(
+        "--cinic_directory", type=str, default="../../data/", help="CINIC-10 directory."
+    )
+    parser.add_argument("--n_epochs", type=int, default=1, help="Number of epochs.")
+    parser.add_argument("--seed", type=int, default=42, help="Seed.")
+    args = parser.parse_args()
+    main(args)
