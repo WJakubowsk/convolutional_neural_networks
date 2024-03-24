@@ -209,15 +209,17 @@ def main(args):
     # plot confusion matrix
     plt.figure(figsize=(10, 7))
     sns.heatmap(confusion_matrix, annot=True)
-    plt.savefig(f"{args.outputdir}/results/{args.model}-{seed}-confusion_matrix.png")
+    plt.savefig(
+        f"{args.outputdir}/results/ensemble-{args.model}-{seed}-confusion_matrix.png"
+    )
 
     # save confusion matrix and accuracy to file
     confusion_matrix.to_csv(
-        f"{args.outputdir}/results/{args.model}-{seed}-confusion_matrix.csv"
+        f"{args.outputdir}/results/ensemble-{args.model}-{seed}-confusion_matrix.csv"
     )
 
     # save model
-    model.save(f"{args.outputdir}/pretrained/{args.model}-{seed}-model.pth")
+    model.save(f"{args.outputdir}/pretrained/ensemble-{args.model}-{seed}-model.pth")
 
 
 if __name__ == "__main__":
