@@ -34,23 +34,17 @@ class ResNet50(nn.Module):
     def fit(self, x: torch.Tensor, y: torch.Tensor):
         """
         Fit the model to the data on one epoch.
-        Args:
-            x: torch.Tensor, input tensor.
-            y: torch.Tensor, target tensor.
         """
         self.optimizer.zero_grad()
         output = self.forward(x)
         loss = self.criterion(output, y)
         loss.backward()
         self.optimizer.step()
+        return loss.item()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
         Predict the output of the model.
-        Args:
-            x: torch.Tensor, input tensor.
-        Returns:
-            torch.Tensor, predicted tensor.
         """
         with torch.no_grad():
             output = self.forward(x)
@@ -145,8 +139,10 @@ def main(args):
     for epoch in tqdm(range(1, n_epochs + 1)):
         torch.manual_seed(seed + epoch)
 
-        for batch_x, batch_y in tqdm(cinic_train):
-            model.fit(batch_x, batch_y)
+        for batch_x, batch_y in cinic_train:
+            output = model.fit(batch_x, batch_y)
+
+        print(f"Epoch {epoch}, Loss train: {output}")
 
         # validate model
         correct_train = 0
@@ -170,16 +166,14 @@ def main(args):
         )
 
         with open("results/accuracy.txt", "a") as f:
-            f.write(f"resnet,{seed},{epoch},{correct / total}")
+            f.write(
+                f"resnet,{seed},{epoch},{correct_train / total_train},{correct_valid / total_valid}\n"
+            )
     # test model
     y_true = []
     y_pred = []
     with torch.no_grad():
-        for batch_x, batch_y in tqdm(cinic_test):
-            # for i in range(len(batch_x)):
-            #     outputs = model.predict(batch_x[i])
-            #     y_true.extend(batch_y[i].unsqueeze(0).numpy())
-            #     y_pred.extend(outputs.numpy())
+        for batch_x, batch_y in cinic_test:
             outputs = model.predict(batch_x)
             y_true.extend(batch_y.numpy())
             y_pred.extend(outputs.numpy())
@@ -187,7 +181,7 @@ def main(args):
     confusion_matrix = pd.crosstab(
         pd.Series(y_true, name="Actual"),
         pd.Series(y_pred, name="Predicted"),
-        margins=True,
+        margins=False,
     )
     # plot confusion matrix
     plt.figure(figsize=(10, 7))
@@ -198,7 +192,7 @@ def main(args):
     confusion_matrix.to_csv(f"results/resnet-{seed}-confusion_matrix.csv")
 
     # save model
-    model.save(f"pretrained/{args.model}-{seed}-model.pth")
+    model.save(f"pretrained/resnet-{seed}-model.pth")
 
 
 if __name__ == "__main__":
