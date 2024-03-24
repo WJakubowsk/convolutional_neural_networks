@@ -14,7 +14,7 @@ from augmentation.augmentor import Augmentor
 
 
 class ConvolutionalNeuralNetwork(torch.nn.Module):
-    def __init__(self, in_channels: int = 3, out_channels: int = 10):
+    def __init__(self, in_channels: int = 3, out_channels: int = 10, lr: float = 0.01):
         """
         Convolution Neural Network model version with 3 convolutions.
         Args:
@@ -33,6 +33,8 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
         self.softmax = torch.nn.Softmax(dim=1)
         self.maxpool = torch.nn.MaxPool2d(kernel_size=2, stride=2)
         self.dropout = torch.nn.Dropout(0.5)
+        self.criterion = torch.nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -55,9 +57,7 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
         x = self.softmax(x)
         return x
 
-    def fit(
-        self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10, lr: float = 0.001
-    ):
+    def fit(self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10):
         """
         Fit the model to the data.
         Args:
@@ -66,15 +66,12 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
             epochs: int, number of epochs.
             lr: float, learning rate.
         """
-        criterion = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(self.parameters(), lr=lr)
-        for epoch in range(epochs):
-            optimizer.zero_grad()
-            output = self.forward(x).squeeze()
-            loss = criterion(output.unsqueeze(0), y.unsqueeze(0))
+        for _ in range(epochs):
+            self.optimizer.zero_grad()
+            output = self.forward(x)
+            loss = self.criterion(output, y)
             loss.backward()
-            optimizer.step()
-            # print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
+            self.optimizer.step()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -98,7 +95,7 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
 
 
 class ConvolutionalNeuralNetwork2(torch.nn.Module):
-    def __init__(self, in_channels: int = 3, out_channels: int = 10):
+    def __init__(self, in_channels: int = 3, out_channels: int = 10, lr: float = 0.01):
         """
         Convolution Neural Network model version with 2 convolutions.
         Args:
@@ -116,6 +113,8 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
         self.softmax = torch.nn.Softmax(dim=1)
         self.avgpool = torch.nn.AvgPool2d(kernel_size=2, stride=2)
         self.dropout = torch.nn.Dropout(0.5)
+        self.criterion = torch.nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -136,9 +135,7 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
         x = self.softmax(x)
         return x
 
-    def fit(
-        self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10, lr: float = 0.001
-    ):
+    def fit(self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10):
         """
         Fit the model to the data.
         Args:
@@ -147,15 +144,12 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
             epochs: int, number of epochs.
             lr: float, learning rate.
         """
-        criterion = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(self.parameters(), lr=lr)
-        for epoch in range(epochs):
-            optimizer.zero_grad()
-            output = self.forward(x).squeeze()
-            loss = criterion(output.unsqueeze(0), y.unsqueeze(0))
+        for _ in range(epochs):
+            self.optimizer.zero_grad()
+            output = self.forward(x)
+            loss = self.criterion(output, y)
             loss.backward()
-            optimizer.step()
-            # print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
+            self.optimizer.step()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -179,7 +173,7 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
 
 
 class ConvolutionalNeuralNetwork3(torch.nn.Module):
-    def __init__(self, in_channels: int = 3, out_channels: int = 10):
+    def __init__(self, in_channels: int = 3, out_channels: int = 10, lr: float = 0.001):
         """
         Convolution Neural Network model with Leaky ReLU activation function.
         Args:
@@ -201,6 +195,8 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         self.softmax = torch.nn.Softmax(dim=1)
         self.avgpool = torch.nn.AvgPool2d(kernel_size=2, stride=2)
         self.dropout = torch.nn.Dropout(0.5)
+        self.criterion = torch.nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -223,9 +219,7 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         x = self.fc2(x)
         return x
 
-    def fit(
-        self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10, lr: float = 0.001
-    ):
+    def fit(self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10):
         """
         Fit the model to the data.
         Args:
@@ -234,14 +228,12 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
             epochs: int, number of epochs.
             lr: float, learning rate.
         """
-        criterion = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(self.parameters(), lr=lr)
-        for epoch in range(epochs):
-            optimizer.zero_grad()
-            output = self.forward(x).squeeze()
-            loss = criterion(output.unsqueeze(0), y.unsqueeze(0))
+        for _ in range(epochs):
+            self.optimizer.zero_grad()
+            output = self.forward(x)
+            loss = self.criterion(output, y)
             loss.backward()
-            optimizer.step()
+            self.optimizer.step()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -268,13 +260,14 @@ def main(args):
     # set seed
     seed = args.seed
     torch.manual_seed(seed)
+    n_classes = 10
 
     if args.model == "cnn":
-        model = ConvolutionalNeuralNetwork()
+        model = ConvolutionalNeuralNetwork(out_channels=n_classes)
     elif args.model == "cnn2":
-        model = ConvolutionalNeuralNetwork2()
+        model = ConvolutionalNeuralNetwork2(out_channels=n_classes)
     elif args.model == "cnn3":
-        model = ConvolutionalNeuralNetwork3()
+        model = ConvolutionalNeuralNetwork3(out_channels=n_classes)
     else:
         raise ValueError("Model not found.")
 
@@ -287,6 +280,28 @@ def main(args):
             cinic_directory + "train",
             transform=transforms.Compose(
                 [
+                    transforms.RandomHorizontalFlip(),  # Randomly flip the image horizontally
+                    transforms.RandomRotation(
+                        degrees=30
+                    ),  # Randomly rotate the image by up to 30 degrees
+                    transforms.RandomApply(
+                        [
+                            transforms.Lambda(
+                                lambda img: transforms.functional.adjust_sharpness(
+                                    img, sharpness_factor=2.0
+                                )
+                            ),  # Increase edge sharpness
+                        ],
+                        p=0.25,
+                    ),  # random sharpness
+                    transforms.RandomApply(
+                        [
+                            transforms.GaussianBlur(
+                                kernel_size=3
+                            ),  # Apply Gaussian blur
+                        ],
+                        p=0.25,
+                    ),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=cinic_mean, std=cinic_std),
                 ]
@@ -325,57 +340,45 @@ def main(args):
     )
 
     n_epochs = args.n_epochs
-    augmentor = Augmentor()
-    n_classes = 10
 
     for epoch in tqdm(range(1, n_epochs + 1)):
-        torch.manual_seed(epoch)
-
-        print(f"EPOCH: {epoch}/{n_epochs}")
+        torch.manual_seed(seed + epoch)
 
         # train model
         for batch_x, batch_y in tqdm(cinic_train):
-            for i in range(len(batch_x)):
-                augmented_images = augmentor.augment_data(batch_x[i])
-                target_one_hot = F.one_hot(batch_y[i], n_classes).float()
-            batch_x = torch.cat(
-                [batch_x] + [tensor.unsqueeze(0) for tensor in augmented_images], dim=0
-            )
-            batch_y = torch.cat(
-                [batch_y] + [target_one_hot for _ in range(len(augmented_images))],
-                dim=0,
-            )
-
-            # for j in range(len(augmented_images)):
-            # model.fit(augmented_images[j], target_one_hot, epochs=1, lr=0.001)
-            model.fit(batch_x, batch_y, epochs=1, lr=0.01)
+            model.fit(batch_x, batch_y, epochs=1)
 
         # validate model
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for batch_x, batch_y in tqdm(cinic_valid):
-                # for i in range(len(batch_x)):
-                #     outputs = model.predict(batch_x[i])
-                #     total += batch_y.size(0)
-                #     correct += (outputs == batch_y[i].unsqueeze(0)).sum().item()
-                outputs = model.predict(batch_x)
-                total += batch_y.size(0)
-                correct += (outputs == batch_y).sum().item()
+        correct_train = 0
+        correct_valid = 0
+        total_train = 0
+        total_valid = 0
 
-        print(f"Accuracy on validation (%): {round(100 * correct / total, 2)}")
+        with torch.no_grad():
+            for batch_x, batch_y in cinic_train:
+                outputs = model.predict(batch_x)
+                total_train += batch_y.size(0)
+                correct_train += (outputs == batch_y).sum().item()
+
+            for batch_x, batch_y in cinic_valid:
+                outputs = model.predict(batch_x)
+                total_valid += batch_y.size(0)
+                correct_valid += (outputs == batch_y).sum().item()
+        print(f"Accuracy on train (%): {round(100 * correct_train / total_train, 2)}")
+        print(
+            f"Accuracy on validation (%): {round(100 * correct_valid / total_valid, 2)}"
+        )
 
         with open("results/accuracy.txt", "a") as f:
-            f.write(f"{args.model},{seed},{epoch},{correct / total}")
+            f.write(
+                f"{args.model},{seed},{epoch},{correct_train / total_train},{correct_valid / total_valid}\n"
+            )
+
     # test model
     y_true = []
     y_pred = []
     with torch.no_grad():
-        for batch_x, batch_y in tqdm(cinic_test):
-            # for i in range(len(batch_x)):
-            #     outputs = model.predict(batch_x[i])
-            #     y_true.extend(batch_y[i].unsqueeze(0).numpy())
-            #     y_pred.extend(outputs.numpy())
+        for batch_x, batch_y in cinic_test:
             outputs = model.predict(batch_x)
             y_true.extend(batch_y.numpy())
             y_pred.extend(outputs.numpy())
@@ -383,7 +386,7 @@ def main(args):
     confusion_matrix = pd.crosstab(
         pd.Series(y_true, name="Actual"),
         pd.Series(y_pred, name="Predicted"),
-        margins=True,
+        margins=False,
     )
     # plot confusion matrix
     plt.figure(figsize=(10, 7))
@@ -403,7 +406,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cinic_directory", type=str, default="../../data/", help="CINIC-10 directory."
     )
-    parser.add_argument("--n_epochs", type=int, default=1, help="Number of epochs.")
+    parser.add_argument("--n_epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--seed", type=int, default=42, help="Seed.")
     args = parser.parse_args()
     main(args)
