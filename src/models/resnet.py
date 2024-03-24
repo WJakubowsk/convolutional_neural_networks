@@ -1,4 +1,3 @@
-import sys
 import argparse
 import pandas as pd
 import seaborn as sns
@@ -165,10 +164,8 @@ def main(args):
             f"Accuracy on validation (%): {round(100 * correct_valid / total_valid, 2)}"
         )
 
-        with open("results/accuracy.txt", "a") as f:
-            f.write(
-                f"resnet,{seed},{epoch},{correct_train / total_train},{correct_valid / total_valid}\n"
-            )
+        with open(f"{args.output_dir}/results/accuracy.txt", "a") as f:
+            f.write(f"resnet,{seed},{epoch},{correct / total}")
     # test model
     y_true = []
     y_pred = []
@@ -186,19 +183,21 @@ def main(args):
     # plot confusion matrix
     plt.figure(figsize=(10, 7))
     sns.heatmap(confusion_matrix, annot=True)
-    plt.savefig(f"results/resnet-{seed}-confusion_matrix.png")
+    plt.savefig(f"{args.output_dir}/results/resnet-{seed}-confusion_matrix.png")
 
     # save confusion matrix and accuracy to file
-    confusion_matrix.to_csv(f"results/resnet-{seed}-confusion_matrix.csv")
+    confusion_matrix.to_csv(f"{args.output_dir}/results/resnet-{seed}-confusion_matrix.csv")
 
     # save model
-    model.save(f"pretrained/resnet-{seed}-model.pth")
+    model.save(f"{args.output_dir}/pretrained/{args.model}-{seed}-model.pth")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--cinic_directory", type=str, default="../../data/", help="CINIC-10 directory."
+        "--data", type=str, default="../../data/", help="CINIC-10 directory."
+    )
+    parser.add_argument("--output-dir", type=str, default="../../src/models", help="CINIC-10 directory."
     )
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--seed", type=int, default=42, help="Seed.")

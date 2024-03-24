@@ -15,6 +15,31 @@
 conda activate cnn
 
 python /home2/faculty/wjakubowski/ConvolutionalNeuralNetworks/src/models/cnn.py \
-    --data "/home2/faculty/wjakubowski/ConvolutionalNeuralNetworks/data/" \
+    --data "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/data/" \
+    --output_dir "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/src/models" \
     --model "cnn" \
     --seed "101"
+
+python /home2/faculty/wjakubowski/ConvolutionalNeuralNetworks/src/models/cnn.py \
+    --data "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/data/" \
+    --output_dir "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/src/models" \
+    --model "cnn" \
+    --seed "202"
+
+python /home2/faculty/wjakubowski/ConvolutionalNeuralNetworks/src/models/cnn.py \
+    --data "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/data/" \
+    --output_dir "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/src/models" \
+    --model "cnn" \
+    --seed "303"
+
+python /home2/faculty/wjakubowski/ConvolutionalNeuralNetworks/src/models/cnn.py \
+    --data "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/data/" \
+    --output_dir "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/src/models" \
+    --model "cnn" \
+    --seed "404"
+
+python /home2/faculty/wjakubowski/ConvolutionalNeuralNetworks/src/models/cnn.py \
+    --data "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/data/" \
+    --output_dir "/mnt/evafs/groups/ganzha_23/wjakubowski/ConvolutionalNeuralNetworks/src/models" \
+    --model "cnn" \
+    --seed "505"
