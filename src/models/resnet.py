@@ -189,7 +189,7 @@ def main(args):
     confusion_matrix.to_csv(f"{args.output_dir}/results/resnet-{seed}-confusion_matrix.csv")
 
     # save model
-    model.save(f"{args.output_dir}/pretrained/{args.model}-{seed}-model.pth")
+    model.save(f"{args.output_dir}/pretrained/resnet-{seed}-model.pth")
 
 
 if __name__ == "__main__":
