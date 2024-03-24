@@ -9,9 +9,6 @@ import torchvision
 import torchvision.transforms as transforms
 from tqdm import tqdm
 
-sys.path.append("..")
-from augmentation.augmentor import Augmentor
-
 
 class ConvolutionalNeuralNetwork(torch.nn.Module):
     def __init__(self, in_channels: int = 3, out_channels: int = 10, lr: float = 0.01):
@@ -30,7 +27,7 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
         self.fc1 = torch.nn.Linear(64 * 4 * 4, 128)
         self.fc2 = torch.nn.Linear(128, out_channels)
         self.relu = torch.nn.ReLU()
-        self.softmax = torch.nn.Softmax(dim=1)
+        # self.softmax = torch.nn.Softmax(dim=1)
         self.maxpool = torch.nn.MaxPool2d(kernel_size=2, stride=2)
         self.dropout = torch.nn.Dropout(0.5)
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -54,7 +51,7 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
         x = self.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
-        x = self.softmax(x)
+        # x = self.softmax(x)
         return x
 
     def fit(self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10):
@@ -72,6 +69,7 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
             loss = self.criterion(output, y)
             loss.backward()
             self.optimizer.step()
+            return loss.item()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -110,7 +108,7 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
         self.fc1 = torch.nn.Linear(32 * 4 * 4, 128)
         self.fc2 = torch.nn.Linear(128, out_channels)
         self.relu = torch.nn.ReLU()
-        self.softmax = torch.nn.Softmax(dim=1)
+        # self.softmax = torch.nn.Softmax(dim=1)
         self.avgpool = torch.nn.AvgPool2d(kernel_size=2, stride=2)
         self.dropout = torch.nn.Dropout(0.5)
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -132,7 +130,6 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
         x = self.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
-        x = self.softmax(x)
         return x
 
     def fit(self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10):
@@ -225,8 +222,6 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         Args:
             x: torch.Tensor, input tensor.
             y: torch.Tensor, target tensor.
-            epochs: int, number of epochs.
-            lr: float, learning rate.
         """
         self.optimizer.zero_grad()
         output = self.forward(x)
@@ -237,10 +232,6 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
         Predict the output of the model.
-        Args:
-            x: torch.Tensor, input tensor.
-        Returns:
-            torch.Tensor, predicted tensor.
         """
         with torch.no_grad():
             output = self.forward(x)
@@ -344,8 +335,9 @@ def main(args):
         torch.manual_seed(seed + epoch)
 
         # train model
-        for batch_x, batch_y in tqdm(cinic_train):
-            model.fit(batch_x, batch_y)
+        for batch_x, batch_y in cinic_train:
+            output = model.fit(batch_x, batch_y)
+        print(f"Epoch: {epoch}, Loss train: {output}")
 
         # validate model
         correct_train = 0
