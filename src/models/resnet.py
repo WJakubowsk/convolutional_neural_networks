@@ -9,9 +9,6 @@ import torchvision.transforms as transforms
 from tqdm import tqdm
 import torch.nn.functional as F
 
-sys.path.append("..")
-from augmentation.augmentor import Augmentor
-
 
 class ResNet50(nn.Module):
     def __init__(self, num_classes=10, lr=0.001):
@@ -67,7 +64,7 @@ def main(args):
     model = ResNet50()
 
     # load data
-    cinic_directory = args.cinic_directory
+    cinic_directory = args.data
     cinic_mean = [0.47889522, 0.47227842, 0.43047404]
     cinic_std = [0.24205776, 0.23828046, 0.25874835]
     cinic_train = torch.utils.data.DataLoader(
@@ -164,7 +161,7 @@ def main(args):
             f"Accuracy on validation (%): {round(100 * correct_valid / total_valid, 2)}"
         )
 
-        with open(f"{args.output_dir}/results/accuracy.txt", "a") as f:
+        with open(f"{args.outputdir}/results/accuracy.txt", "a") as f:
             f.write(f"resnet,{seed},{epoch},{correct / total}")
     # test model
     y_true = []
@@ -183,13 +180,13 @@ def main(args):
     # plot confusion matrix
     plt.figure(figsize=(10, 7))
     sns.heatmap(confusion_matrix, annot=True)
-    plt.savefig(f"{args.output_dir}/results/resnet-{seed}-confusion_matrix.png")
+    plt.savefig(f"{args.outputdir}/results/resnet-{seed}-confusion_matrix.png")
 
     # save confusion matrix and accuracy to file
-    confusion_matrix.to_csv(f"{args.output_dir}/results/resnet-{seed}-confusion_matrix.csv")
+    confusion_matrix.to_csv(f"{args.outputdir}/results/resnet-{seed}-confusion_matrix.csv")
 
     # save model
-    model.save(f"{args.output_dir}/pretrained/resnet-{seed}-model.pth")
+    model.save(f"{args.outputdir}/pretrained/resnet-{seed}-model.pth")
 
 
 if __name__ == "__main__":
@@ -197,7 +194,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data", type=str, default="../../data/", help="CINIC-10 directory."
     )
-    parser.add_argument("--output-dir", type=str, default="../../src/models", help="CINIC-10 directory."
+    parser.add_argument("--outputdir", type=str, default="../../src/models", help="CINIC-10 directory."
     )
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--seed", type=int, default=42, help="Seed.")
