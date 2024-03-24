@@ -27,7 +27,6 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
         self.fc1 = torch.nn.Linear(64 * 4 * 4, 128)
         self.fc2 = torch.nn.Linear(128, out_channels)
         self.relu = torch.nn.ReLU()
-        # self.softmax = torch.nn.Softmax(dim=1)
         self.maxpool = torch.nn.MaxPool2d(kernel_size=2, stride=2)
         self.dropout = torch.nn.Dropout(0.5)
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -51,33 +50,25 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
         x = self.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
-        # x = self.softmax(x)
         return x
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10):
+    def fit(self, x: torch.Tensor, y: torch.Tensor):
         """
         Fit the model to the data.
         Args:
             x: torch.Tensor, input tensor.
             y: torch.Tensor, target tensor.
-            epochs: int, number of epochs.
-            lr: float, learning rate.
         """
-        for _ in range(epochs):
-            self.optimizer.zero_grad()
-            output = self.forward(x)
-            loss = self.criterion(output, y)
-            loss.backward()
-            self.optimizer.step()
-            return loss.item()
+        self.optimizer.zero_grad()
+        output = self.forward(x)
+        loss = self.criterion(output, y)
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
         Predict the output of the model.
-        Args:
-            x: torch.Tensor, input tensor.
-        Returns:
-            torch.Tensor, predicted tensor.
         """
         with torch.no_grad():
             output = self.forward(x)
@@ -108,7 +99,6 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
         self.fc1 = torch.nn.Linear(32 * 4 * 4, 128)
         self.fc2 = torch.nn.Linear(128, out_channels)
         self.relu = torch.nn.ReLU()
-        # self.softmax = torch.nn.Softmax(dim=1)
         self.avgpool = torch.nn.AvgPool2d(kernel_size=2, stride=2)
         self.dropout = torch.nn.Dropout(0.5)
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -117,10 +107,6 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the model.
-        Args:
-            x: torch.Tensor, input tensor.
-        Returns:
-            x: torch.Tensor, output tensor.
         """
         x = self.relu(self.conv1(x))
         x = self.avgpool(x)
@@ -132,29 +118,23 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
         x = self.fc2(x)
         return x
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10):
+    def fit(self, x: torch.Tensor, y: torch.Tensor):
         """
         Fit the model to the data.
         Args:
             x: torch.Tensor, input tensor.
             y: torch.Tensor, target tensor.
-            epochs: int, number of epochs.
-            lr: float, learning rate.
         """
-        for _ in range(epochs):
-            self.optimizer.zero_grad()
-            output = self.forward(x)
-            loss = self.criterion(output, y)
-            loss.backward()
-            self.optimizer.step()
+        self.optimizer.zero_grad()
+        output = self.forward(x)
+        loss = self.criterion(output, y)
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
         Predict the output of the model.
-        Args:
-            x: torch.Tensor, input tensor.
-        Returns:
-            torch.Tensor, predicted tensor.
         """
         with torch.no_grad():
             output = self.forward(x)
@@ -189,7 +169,6 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         self.fc1 = torch.nn.Linear(128 * 4 * 4, 256)
         self.fc2 = torch.nn.Linear(256, out_channels)
         self.leakyrelu = torch.nn.LeakyReLU(negative_slope=0.01)
-        self.softmax = torch.nn.Softmax(dim=1)
         self.avgpool = torch.nn.AvgPool2d(kernel_size=2, stride=2)
         self.dropout = torch.nn.Dropout(0.5)
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -198,12 +177,7 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the model.
-        Args:
-            x: torch.Tensor, input tensor.
-        Returns:
-            x: torch.Tensor, output tensor.
         """
-        x = x.unsqueeze(0)
         x = self.leakyrelu(self.bn1(self.conv1(x)))
         x = self.avgpool(x)
         x = self.leakyrelu(self.bn2(self.conv2(x)))
@@ -228,6 +202,7 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         loss = self.criterion(output, y)
         loss.backward()
         self.optimizer.step()
+        return loss.item()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
