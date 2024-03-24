@@ -15,12 +15,14 @@ from augmentation.augmentor import Augmentor
 
 
 class ResNet50(nn.Module):
-    def __init__(self, num_classes=10):
+    def __init__(self, num_classes=10, lr=0.001):
         super(ResNet50, self).__init__()
         resnet = torchvision.models.resnet50(pretrained=True)
         self.features = nn.Sequential(*list(resnet.children())[:-2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(2048, num_classes)
+        self.criterion = torch.nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
     def forward(self, x):
         x = self.features(x)
@@ -29,26 +31,18 @@ class ResNet50(nn.Module):
         x = self.fc(x)
         return x
 
-    def fit(
-        self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10, lr: float = 0.001
-    ):
+    def fit(self, x: torch.Tensor, y: torch.Tensor):
         """
-        Fit the model to the data.
+        Fit the model to the data on one epoch.
         Args:
             x: torch.Tensor, input tensor.
             y: torch.Tensor, target tensor.
-            epochs: int, number of epochs.
-            lr: float, learning rate.
         """
-        criterion = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(self.parameters(), lr=lr)
-        for epoch in range(epochs):
-            optimizer.zero_grad()
-            output = self.forward(x)
-            loss = criterion(output, y)
-            loss.backward()
-            optimizer.step()
-            # print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
+        self.optimizer.zero_grad()
+        output = self.forward(x)
+        loss = self.criterion(output, y)
+        loss.backward()
+        self.optimizer.step()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -88,6 +82,28 @@ def main(args):
             cinic_directory + "train",
             transform=transforms.Compose(
                 [
+                    transforms.RandomHorizontalFlip(),  # Randomly flip the image horizontally
+                    transforms.RandomRotation(
+                        degrees=30
+                    ),  # Randomly rotate the image by up to 30 degrees
+                    transforms.RandomApply(
+                        [
+                            transforms.Lambda(
+                                lambda img: transforms.functional.adjust_sharpness(
+                                    img, sharpness_factor=2.0
+                                )
+                            ),  # Increase edge sharpness
+                        ],
+                        p=0.25,
+                    ),  # random sharpness
+                    transforms.RandomApply(
+                        [
+                            transforms.GaussianBlur(
+                                kernel_size=3
+                            ),  # Apply Gaussian blur
+                        ],
+                        p=0.25,
+                    ),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=cinic_mean, std=cinic_std),
                 ]
@@ -124,39 +140,34 @@ def main(args):
     )
 
     # train model
-    n_epochs = args.n_epochs
-    augmentor = Augmentor()
-    n_classes = 10
+    n_epochs = args.epochs
 
     for epoch in tqdm(range(1, n_epochs + 1)):
-        torch.manual_seed(epoch)
+        torch.manual_seed(seed + epoch)
 
-        print(f"EPOCH: {epoch}/{n_epochs}")
-
-        # train model
         for batch_x, batch_y in tqdm(cinic_train):
-            model.fit(batch_x, batch_y, epochs=1, lr=0.001)
-            # print(batch_x.shape)
-            # for i in range(len(batch_x)):
-            #     augmented_images = augmentor.augment_data(batch_x[i])
-            #     target_one_hot = F.one_hot(batch_y[i], n_classes).float()
-            #     for j in range(len(augmented_images)):
-            #         model.fit(augmented_images[j], target_one_hot, epochs=1, lr=0.001)
+            model.fit(batch_x, batch_y)
 
         # validate model
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for batch_x, batch_y in tqdm(cinic_valid):
-                # for i in range(len(batch_x)):
-                #     outputs = model.predict(batch_x[i])
-                #     total += batch_y.size(0)
-                #     correct += (outputs == batch_y[i].unsqueeze(0)).sum().item()
-                outputs = model.predict(batch_x)
-                total += batch_y.size(0)
-                correct += (outputs == batch_y).sum().item()
+        correct_train = 0
+        correct_valid = 0
+        total_train = 0
+        total_valid = 0
 
-        print(f"Accuracy on validation (%): {round(100 * correct / total, 2)}")
+        with torch.no_grad():
+            for batch_x, batch_y in cinic_train:
+                outputs = model.predict(batch_x)
+                total_train += batch_y.size(0)
+                correct_train += (outputs == batch_y).sum().item()
+
+            for batch_x, batch_y in cinic_valid:
+                outputs = model.predict(batch_x)
+                total_valid += batch_y.size(0)
+                correct_valid += (outputs == batch_y).sum().item()
+        print(f"Accuracy on train (%): {round(100 * correct_train / total_train, 2)}")
+        print(
+            f"Accuracy on validation (%): {round(100 * correct_valid / total_valid, 2)}"
+        )
 
         with open("results/accuracy.txt", "a") as f:
             f.write(f"resnet,{seed},{epoch},{correct / total}")
@@ -195,7 +206,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cinic_directory", type=str, default="../../data/", help="CINIC-10 directory."
     )
-    parser.add_argument("--n_epochs", type=int, default=1, help="Number of epochs.")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--seed", type=int, default=42, help="Seed.")
     args = parser.parse_args()
     main(args)

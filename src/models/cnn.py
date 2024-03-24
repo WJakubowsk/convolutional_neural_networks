@@ -219,21 +219,20 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
         x = self.fc2(x)
         return x
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor, epochs: int = 10):
+    def fit(self, x: torch.Tensor, y: torch.Tensor):
         """
-        Fit the model to the data.
+        Fit the model to the data on one epoch.
         Args:
             x: torch.Tensor, input tensor.
             y: torch.Tensor, target tensor.
             epochs: int, number of epochs.
             lr: float, learning rate.
         """
-        for _ in range(epochs):
-            self.optimizer.zero_grad()
-            output = self.forward(x)
-            loss = self.criterion(output, y)
-            loss.backward()
-            self.optimizer.step()
+        self.optimizer.zero_grad()
+        output = self.forward(x)
+        loss = self.criterion(output, y)
+        loss.backward()
+        self.optimizer.step()
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -339,14 +338,14 @@ def main(args):
         shuffle=True,
     )
 
-    n_epochs = args.n_epochs
+    n_epochs = args.epochs
 
     for epoch in tqdm(range(1, n_epochs + 1)):
         torch.manual_seed(seed + epoch)
 
         # train model
         for batch_x, batch_y in tqdm(cinic_train):
-            model.fit(batch_x, batch_y, epochs=1)
+            model.fit(batch_x, batch_y)
 
         # validate model
         correct_train = 0
@@ -406,7 +405,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cinic_directory", type=str, default="../../data/", help="CINIC-10 directory."
     )
-    parser.add_argument("--n_epochs", type=int, default=10, help="Number of epochs.")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--seed", type=int, default=42, help="Seed.")
     args = parser.parse_args()
     main(args)
