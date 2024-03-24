@@ -74,7 +74,7 @@ class ConvolutionalNeuralNetwork(torch.nn.Module):
             loss = criterion(output.unsqueeze(0), y.unsqueeze(0))
             loss.backward()
             optimizer.step()
-            print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
+            # print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -155,7 +155,7 @@ class ConvolutionalNeuralNetwork2(torch.nn.Module):
             loss = criterion(output.unsqueeze(0), y.unsqueeze(0))
             loss.backward()
             optimizer.step()
-            print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
+            # print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -242,7 +242,6 @@ class ConvolutionalNeuralNetwork3(torch.nn.Module):
             loss = criterion(output.unsqueeze(0), y.unsqueeze(0))
             loss.backward()
             optimizer.step()
-            print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -339,46 +338,63 @@ def main(args):
             for i in range(len(batch_x)):
                 augmented_images = augmentor.augment_data(batch_x[i])
                 target_one_hot = F.one_hot(batch_y[i], n_classes).float()
-                for j in range(len(augmented_images)):
-                    model.fit(augmented_images[j], target_one_hot, epochs=1, lr=0.001)
+            batch_x = torch.cat(
+                [batch_x] + [tensor.unsqueeze(0) for tensor in augmented_images], dim=0
+            )
+            batch_y = torch.cat(
+                [batch_y] + [target_one_hot for _ in range(len(augmented_images))],
+                dim=0,
+            )
+
+            # for j in range(len(augmented_images)):
+            # model.fit(augmented_images[j], target_one_hot, epochs=1, lr=0.001)
+            model.fit(batch_x, batch_y, epochs=1, lr=0.01)
 
         # validate model
         correct = 0
         total = 0
         with torch.no_grad():
             for batch_x, batch_y in tqdm(cinic_valid):
-                for i in range(len(batch_x)):
-                    outputs = model.predict(batch_x[i])
-                    total += batch_y.size(0)
-                    correct += (outputs == batch_y[i].unsqueeze(0)).sum().item()
+                # for i in range(len(batch_x)):
+                #     outputs = model.predict(batch_x[i])
+                #     total += batch_y.size(0)
+                #     correct += (outputs == batch_y[i].unsqueeze(0)).sum().item()
+                outputs = model.predict(batch_x)
+                total += batch_y.size(0)
+                correct += (outputs == batch_y).sum().item()
 
-        print(f"Accuracy on validation: {100 * correct / total}")
-        # test model
-        y_true = []
-        y_pred = []
-        with torch.no_grad():
-            for batch_x, batch_y in tqdm(cinic_test):
-                for i in range(len(batch_x)):
-                    outputs = model.predict(batch_x[i])
-                    y_true.extend(batch_y[i].unsqueeze(0).numpy())
-                    y_pred.extend(outputs.numpy())
-        confusion_matrix = pd.crosstab(
-            pd.Series(y_true, name="Actual"),
-            pd.Series(y_pred, name="Predicted"),
-            margins=True,
-        )
-        # plot confusion matrix
-        plt.figure(figsize=(10, 7))
-        sns.heatmap(confusion_matrix, annot=True)
-        plt.savefig(f"{args.model}-{seed}-confusion_matrix.png")
+        print(f"Accuracy on validation (%): {round(100 * correct / total, 2)}")
 
-        # save confusion matrix and accuracy to file
-        confusion_matrix.to_csv(f"{args.model}-{seed}-confusion_matrix.csv")
-        with open("accuracy.txt", "w") as f:
-            f.write(f"{args.model},{seed},{100 * correct / total}")
+        with open("results/accuracy.txt", "a") as f:
+            f.write(f"{args.model},{seed},{epoch},{correct / total}")
+    # test model
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for batch_x, batch_y in tqdm(cinic_test):
+            # for i in range(len(batch_x)):
+            #     outputs = model.predict(batch_x[i])
+            #     y_true.extend(batch_y[i].unsqueeze(0).numpy())
+            #     y_pred.extend(outputs.numpy())
+            outputs = model.predict(batch_x)
+            y_true.extend(batch_y.numpy())
+            y_pred.extend(outputs.numpy())
 
-        # save model
-        model.save(f"{args.model}-{seed}-model.pth")
+    confusion_matrix = pd.crosstab(
+        pd.Series(y_true, name="Actual"),
+        pd.Series(y_pred, name="Predicted"),
+        margins=True,
+    )
+    # plot confusion matrix
+    plt.figure(figsize=(10, 7))
+    sns.heatmap(confusion_matrix, annot=True)
+    plt.savefig(f"results/{args.model}-{seed}-confusion_matrix.png")
+
+    # save confusion matrix and accuracy to file
+    confusion_matrix.to_csv(f"results/{args.model}-{seed}-confusion_matrix.csv")
+
+    # save model
+    model.save(f"pretrained/{args.model}-{seed}-model.pth")
 
 
 if __name__ == "__main__":

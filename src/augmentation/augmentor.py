@@ -61,7 +61,7 @@ class Augmentor:
         """
         image = image.cpu().numpy()
         augmentations = [
-            image,
+            # image,
             self._rotate_image(image),
             self._flip_image(image),
             self._sharpen_image(image),

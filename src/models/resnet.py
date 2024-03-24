@@ -7,6 +7,8 @@ import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
+from tqdm import tqdm
+import torch.nn.functional as F
 
 sys.path.append("..")
 from augmentation.augmentor import Augmentor
@@ -38,7 +40,7 @@ class ResNet50(nn.Module):
             epochs: int, number of epochs.
             lr: float, learning rate.
         """
-        criterion = nn.CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         for epoch in range(epochs):
             optimizer.zero_grad()
@@ -46,7 +48,7 @@ class ResNet50(nn.Module):
             loss = criterion(output, y)
             loss.backward()
             optimizer.step()
-            print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
+            # print(f"Epoch: {epoch + 1}, Loss: {loss.item()}")
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -124,54 +126,68 @@ def main(args):
     # train model
     n_epochs = args.n_epochs
     augmentor = Augmentor()
+    n_classes = 10
 
-    for epoch in range(1, n_epochs + 1):
+    for epoch in tqdm(range(1, n_epochs + 1)):
         torch.manual_seed(epoch)
 
         print(f"EPOCH: {epoch}/{n_epochs}")
 
-        for batch_x, batch_y in cinic_train:
-            for i in range(len(batch_x)):
-                batch_x[i] = augmentor.augment_data(batch_x[i])
-                model.fit(batch_x[i], batch_y[i], epochs=1, lr=0.001)
+        # train model
+        for batch_x, batch_y in tqdm(cinic_train):
+            model.fit(batch_x, batch_y, epochs=1, lr=0.001)
+            # print(batch_x.shape)
+            # for i in range(len(batch_x)):
+            #     augmented_images = augmentor.augment_data(batch_x[i])
+            #     target_one_hot = F.one_hot(batch_y[i], n_classes).float()
+            #     for j in range(len(augmented_images)):
+            #         model.fit(augmented_images[j], target_one_hot, epochs=1, lr=0.001)
 
-        # evaluate model
+        # validate model
         correct = 0
         total = 0
         with torch.no_grad():
-            for batch_x, batch_y in cinic_valid:
-                for i in range(len(batch_x)):
-                    outputs = model.predict(batch_x[i])
-                    total += batch_y[i].size(0)
-                    correct += (outputs == batch_y[i]).sum().item()
+            for batch_x, batch_y in tqdm(cinic_valid):
+                # for i in range(len(batch_x)):
+                #     outputs = model.predict(batch_x[i])
+                #     total += batch_y.size(0)
+                #     correct += (outputs == batch_y[i].unsqueeze(0)).sum().item()
+                outputs = model.predict(batch_x)
+                total += batch_y.size(0)
+                correct += (outputs == batch_y).sum().item()
 
-        print(f"Accuracy: {100 * correct / total}")
+        print(f"Accuracy on validation (%): {round(100 * correct / total, 2)}")
 
-        y_true = []
-        y_pred = []
-        with torch.no_grad():
-            for batch_x, batch_y in cinic_test:
-                for i in range(len(batch_x)):
-                    outputs = model.predict(batch_x[i])
-                    y_true.extend(batch_y[i].numpy())
-                    y_pred.extend(outputs.numpy())
-        confusion_matrix = pd.crosstab(
-            pd.Series(y_true, name="Actual"),
-            pd.Series(y_pred, name="Predicted"),
-            margins=True,
-        )
-        # plot confusion matrix
-        plt.figure(figsize=(10, 7))
-        sns.heatmap(confusion_matrix, annot=True)
-        plt.savefig("confusion_matrix.png")
+        with open("results/accuracy.txt", "a") as f:
+            f.write(f"resnet,{seed},{epoch},{correct / total}")
+    # test model
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for batch_x, batch_y in tqdm(cinic_test):
+            # for i in range(len(batch_x)):
+            #     outputs = model.predict(batch_x[i])
+            #     y_true.extend(batch_y[i].unsqueeze(0).numpy())
+            #     y_pred.extend(outputs.numpy())
+            outputs = model.predict(batch_x)
+            y_true.extend(batch_y.numpy())
+            y_pred.extend(outputs.numpy())
 
-        # save confusion matrix and accuracy to file
-        confusion_matrix.to_csv(model + seed + "confusion_matrix.csv")
-        with open("accuracy.txt", "w") as f:
-            f.write(f"{model},{seed},{100 * correct / total}")
+    confusion_matrix = pd.crosstab(
+        pd.Series(y_true, name="Actual"),
+        pd.Series(y_pred, name="Predicted"),
+        margins=True,
+    )
+    # plot confusion matrix
+    plt.figure(figsize=(10, 7))
+    sns.heatmap(confusion_matrix, annot=True)
+    plt.savefig(f"results/resnet-{seed}-confusion_matrix.png")
 
-        # save model
-        model.save(model + seed + "model.pth")
+    # save confusion matrix and accuracy to file
+    confusion_matrix.to_csv(f"results/resnet-{seed}-confusion_matrix.csv")
+
+    # save model
+    model.save(f"pretrained/{args.model}-{seed}-model.pth")
 
 
 if __name__ == "__main__":
