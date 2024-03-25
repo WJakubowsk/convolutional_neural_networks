@@ -17,65 +17,120 @@ from cnn import (
 
 class EnsembleCNN:
     def __init__(
-        self, network: nn.Module, num_classes_per_model: list[int], lr: float = 0.001
+        self,
+        network: str,
+        classes_per_model: list[list[int]],
+        lr: float = 0.001,
     ):
         """
         Initialize the ensemble model.
         Args:
-            network: nn.Module, a convolutional neural network architecture, availble in cnn.py.
-            num_classes_per_model: list[int], the number of classes for each model.
+            network: str, a convolutional neural network architecture, availble: cnn, cnn2, cnn3.
+            classes_per_model: list[list[int]], the target classes for each model to fit on.
             lr: float, the learning rate.
         """
         self.models = []
-        self.num_classes_per_model = num_classes_per_model
-        self.num_models = len(num_classes_per_model)
+        self.classes_per_model = classes_per_model
+        self.num_models = len(classes_per_model)
 
-        for num_classes in num_classes_per_model:
-            model = network(num_classes)
+        for num_classes in self.classes_per_model:
+            # create model
+            if network == "cnn":
+                model = ConvolutionalNeuralNetwork(out_channels=len(num_classes))
+            elif network == "cnn2":
+                model = ConvolutionalNeuralNetwork2(out_channels=len(num_classes))
+            elif network == "cnn3":
+                model = ConvolutionalNeuralNetwork3(out_channels=len(num_classes))
+            else:
+                raise ValueError("Model not recognized.")
             self.models.append(model)
 
-        self.loss = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss()
         self.optimizers = [
             optim.Adam(model.parameters(), lr=lr) for model in self.models
         ]
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor, model_index: int):
+    def fit(self, x: torch.Tensor, y: torch.Tensor, label_mapping: dict):
         """
         Fit the appropriate model to the training data.
         Args:
             x: torch.Tensor, the features.
             y: torch.Tensor, the target variable.
-            model_index: int, the index of the model.
         """
-        model = self.models[model_index]
-        indices = np.where(
-            np.isin(y, np.arange(sum(self.num_classes_per_model[model_index:])))
-        )[0]
-        optimizer = optim.Adam(model.parameters())
-        criterion = nn.CrossEntropyLoss()
-        for i in range(0, len(indices), 32):
-            inputs = torch.tensor(x[indices[i : i + 32]], dtype=torch.float32)
-            targets = torch.tensor(y[indices[i : i + 32]], dtype=torch.long)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
+        loss_total = 0
+        for i, model in enumerate(self.models):
+            # select observations and targets with targets only in the classes_per_model[i]
+            mask = np.isin(y.numpy(), self.classes_per_model[i])
+            if mask.any():
+                x = x[mask]
+                y = y[mask]
+                mapped_labels = torch.tensor(
+                    [
+                        torch.tensor(label_mapping[label.item()], dtype=torch.long)
+                        for label in y
+                    ],
+                    dtype=torch.long,
+                )
+                model.fit(x, mapped_labels)
+                self.optimizers[i].zero_grad()
+                outputs = model.forward(x)
+                loss = self.criterion(outputs, mapped_labels)
+                loss.backward()
+                self.optimizers[i].step()
+                loss_total += loss.item()
+        return loss_total
 
-    def predict(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Predict the output of the ensemble model by taking the maximum confidence of the models.
-        """
-        predictions = []
-        for model in self.models:
+    # def predict(self, x: torch.Tensor) -> torch.Tensor:
+    #     """
+    #     Predict the output of the ensemble model by taking the maximum confidence of the models.
+    #     """
+    #     predictions = []
+    #     for model in self.models:
+    #         model.eval()
+    #         with torch.no_grad():
+    #             inputs = torch.tensor(x, dtype=torch.float32)
+    #             outputs = model(inputs)
+    #             predictions.append(outputs.numpy())
+    #     max_confidence = np.max(predictions, axis=0)
+    #     ensemble_predictions = np.argmax(max_confidence, axis=1)
+    #     return ensemble_predictions
+
+    def predict(self, x, label_mapping: dict):
+        predictions = [[] for _ in range(self.num_models)]
+        model_indices = [[] for _ in range(self.num_models)]
+        for idx, model in enumerate(self.models):
             model.eval()
+            # print(x)
             with torch.no_grad():
-                inputs = torch.tensor(x, dtype=torch.float32)
-                outputs = model(inputs)
-                predictions.append(outputs.numpy())
-        max_confidence = np.max(predictions, axis=0)
-        ensemble_predictions = np.argmax(max_confidence, axis=1)
-        return ensemble_predictions
+                # inputs = torch.tensor(x, dtype=torch.float32)
+                outputs = model(x)
+                # print(outputs.numpy())
+                model_predictions = np.max(outputs.numpy(), axis=1)  # .tolist()
+                model_predictions_index = np.argmax(outputs.numpy(), axis=1)
+                predictions[idx].extend(model_predictions)
+                model_indices[idx].extend(model_predictions_index)
+
+        # Find the maximum prediction for each observation
+        # print(predictions[0])
+
+        max_elements = []
+        max_indices = []
+
+        for values in zip(*predictions):
+            max_val = max(values)
+            max_elements.append(max_val)
+            max_idx = values.index(max_val)
+            max_indices.append(max_idx)
+
+        # print(model_indices, len(model_indices[0]))
+        # print(max_indices, len(max_indices))
+
+        # Return mapped predictions
+        mapped_predictions = [
+            label_mapping[el][model_indices[el][i]] for i, el in enumerate(max_indices)
+        ]
+        # print(mapped_predictions, len(mapped_predictions))
+        return torch.tensor(mapped_predictions, dtype=torch.long)
 
 
 def main(args):
@@ -83,17 +138,7 @@ def main(args):
     seed = args.seed
     torch.manual_seed(seed)
 
-    # create model
-    if args.model == "cnn":
-        model = ConvolutionalNeuralNetwork()
-    elif args.model == "cnn2":
-        model = ConvolutionalNeuralNetwork2()
-    elif args.model == "cnn3":
-        model = ConvolutionalNeuralNetwork3()
-    else:
-        raise ValueError("Model not recognized.")
-
-    ensemble = EnsembleCNN(model, args.num_classes_per_model)
+    ensemble = EnsembleCNN(network=args.model, classes_per_model=args.classes_per_model)
 
     # load data
     cinic_directory = args.data
@@ -158,12 +203,21 @@ def main(args):
     )
 
     n_epochs = args.epochs
+    label_mapping = {0: 0, 1: 0, 2: 1, 3: 0, 4: 0, 5: 1, 6: 2, 7: 1, 8: 3, 9: 1}
+    reversed_mapping = {
+        0: {1: 9, 0: 1},
+        1: {1: 5, 0: 3},
+        2: {1: 7, 0: 4},
+        3: {3: 8, 2: 6, 1: 2, 0: 0},
+    }
 
     for epoch in range(1, n_epochs + 1):
         # train model
+        loss = 0
         for batch_x, batch_y in cinic_train:
-            for j in range(ensemble.num_models):
-                ensemble.fit(batch_x, batch_y, j)
+            loss += ensemble.fit(batch_x, batch_y, label_mapping)
+
+        print(f"Epoch {epoch}, Loss: {loss / len(cinic_train.dataset)}")
 
         # validate model
         correct_train = 0
@@ -173,12 +227,12 @@ def main(args):
 
         with torch.no_grad():
             for batch_x, batch_y in cinic_train:
-                outputs = model.predict(batch_x)
+                outputs = ensemble.predict(batch_x, reversed_mapping)
                 total_train += batch_y.size(0)
                 correct_train += (outputs == batch_y).sum().item()
 
             for batch_x, batch_y in cinic_valid:
-                outputs = model.predict(batch_x)
+                outputs = ensemble.predict(batch_x, reversed_mapping)
                 total_valid += batch_y.size(0)
                 correct_valid += (outputs == batch_y).sum().item()
         print(f"Accuracy on train (%): {round(100 * correct_train / total_train, 2)}")
@@ -196,7 +250,7 @@ def main(args):
     y_pred = []
     with torch.no_grad():
         for batch_x, batch_y in cinic_test:
-            outputs = model.predict(batch_x)
+            outputs = ensemble.predict(batch_x, reversed_mapping)
             y_true.extend(batch_y.numpy())
             y_pred.extend(outputs.numpy())
 
@@ -236,10 +290,10 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--seed", type=int, default=42, help="Seed.")
     parser.add_argument(
-        "--num_classes_per_model",
+        "--classes_per_model",
         type=list,
-        default=[3, 4, 3],
-        help="Number of classes per network.",
+        default=[[1, 9], [3, 5], [4, 7], [0, 2, 6, 8]],
+        help="classes per network.",
     )
     args = parser.parse_args()
     main(args)
