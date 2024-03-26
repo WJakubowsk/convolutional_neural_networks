@@ -3,7 +3,6 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import torch
-import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 from tqdm import tqdm
@@ -244,25 +243,21 @@ def main(args):
             cinic_directory + "train",
             transform=transforms.Compose(
                 [
-                    transforms.RandomHorizontalFlip(),  # Randomly flip the image horizontally
-                    transforms.RandomRotation(
-                        degrees=30
-                    ),  # Randomly rotate the image by up to 30 degrees
+                    transforms.RandomHorizontalFlip(),
+                    transforms.RandomRotation(degrees=30),
                     transforms.RandomApply(
                         [
                             transforms.Lambda(
                                 lambda img: transforms.functional.adjust_sharpness(
                                     img, sharpness_factor=2.0
                                 )
-                            ),  # Increase edge sharpness
+                            ),
                         ],
                         p=0.25,
-                    ),  # random sharpness
+                    ),
                     transforms.RandomApply(
                         [
-                            transforms.GaussianBlur(
-                                kernel_size=3
-                            ),  # Apply Gaussian blur
+                            transforms.GaussianBlur(kernel_size=3),
                         ],
                         p=0.25,
                     ),
@@ -353,13 +348,14 @@ def main(args):
         pd.Series(y_pred, name="Predicted"),
         margins=False,
     )
-    # plot confusion matrix
+
+    # save confusion matrix and accuracy to file
     plt.figure(figsize=(10, 7))
     sns.heatmap(confusion_matrix, annot=True)
     plt.savefig(f"{args.outputdir}/results/{args.model}-{seed}-confusion_matrix.png")
-
-    # save confusion matrix and accuracy to file
-    confusion_matrix.to_csv(f"{args.outputdir}/results/{args.model}-{seed}-confusion_matrix.csv")
+    confusion_matrix.to_csv(
+        f"{args.outputdir}/results/{args.model}-{seed}-confusion_matrix.csv"
+    )
 
     # save model
     model.save(f"{args.outputdir}/pretrained/{args.model}-{seed}-model.pth")
@@ -371,7 +367,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data", type=str, default="../../data/", help="CINIC-10 directory."
     )
-    parser.add_argument("--outputdir", type=str, default="../../src/models", help="CINIC-10 directory."
+    parser.add_argument(
+        "--outputdir", type=str, default="../../src/models", help="CINIC-10 directory."
     )
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--seed", type=int, default=42, help="Seed.")

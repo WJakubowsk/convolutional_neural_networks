@@ -34,7 +34,6 @@ class EnsembleCNN:
         self.num_models = len(classes_per_model)
 
         for num_classes in self.classes_per_model:
-            # create model
             if network == "cnn":
                 model = ConvolutionalNeuralNetwork(out_channels=len(num_classes))
             elif network == "cnn2":
@@ -56,10 +55,10 @@ class EnsembleCNN:
         Args:
             x: torch.Tensor, the features.
             y: torch.Tensor, the target variable.
+            label_mapping: dict, a mapping from the original classes to the classes of the model.
         """
         loss_total = 0
         for i, model in enumerate(self.models):
-            # select observations and targets with targets only in the classes_per_model[i]
             mask = np.isin(y.numpy(), self.classes_per_model[i])
             if mask.any():
                 x = x[mask]
@@ -80,38 +79,17 @@ class EnsembleCNN:
                 loss_total += loss.item()
         return loss_total
 
-    # def predict(self, x: torch.Tensor) -> torch.Tensor:
-    #     """
-    #     Predict the output of the ensemble model by taking the maximum confidence of the models.
-    #     """
-    #     predictions = []
-    #     for model in self.models:
-    #         model.eval()
-    #         with torch.no_grad():
-    #             inputs = torch.tensor(x, dtype=torch.float32)
-    #             outputs = model(inputs)
-    #             predictions.append(outputs.numpy())
-    #     max_confidence = np.max(predictions, axis=0)
-    #     ensemble_predictions = np.argmax(max_confidence, axis=1)
-    #     return ensemble_predictions
-
     def predict(self, x, label_mapping: dict):
         predictions = [[] for _ in range(self.num_models)]
         model_indices = [[] for _ in range(self.num_models)]
         for idx, model in enumerate(self.models):
             model.eval()
-            # print(x)
             with torch.no_grad():
-                # inputs = torch.tensor(x, dtype=torch.float32)
                 outputs = model(x)
-                # print(outputs.numpy())
-                model_predictions = np.max(outputs.numpy(), axis=1)  # .tolist()
+                model_predictions = np.max(outputs.numpy(), axis=1)
                 model_predictions_index = np.argmax(outputs.numpy(), axis=1)
                 predictions[idx].extend(model_predictions)
                 model_indices[idx].extend(model_predictions_index)
-
-        # Find the maximum prediction for each observation
-        # print(predictions[0])
 
         max_elements = []
         max_indices = []
@@ -122,14 +100,10 @@ class EnsembleCNN:
             max_idx = values.index(max_val)
             max_indices.append(max_idx)
 
-        # print(model_indices, len(model_indices[0]))
-        # print(max_indices, len(max_indices))
-
         # Return mapped predictions
         mapped_predictions = [
             label_mapping[el][model_indices[el][i]] for i, el in enumerate(max_indices)
         ]
-        # print(mapped_predictions, len(mapped_predictions))
         return torch.tensor(mapped_predictions, dtype=torch.long)
 
 
@@ -213,11 +187,11 @@ def main(args):
 
     for epoch in range(1, n_epochs + 1):
         # train model
-        loss = 0
-        for batch_x, batch_y in cinic_train:
-            loss += ensemble.fit(batch_x, batch_y, label_mapping)
 
-        print(f"Epoch {epoch}, Loss: {loss / len(cinic_train.dataset)}")
+        for batch_x, batch_y in cinic_train:
+            loss = ensemble.fit(batch_x, batch_y, label_mapping)
+
+        print(f"Epoch {epoch}, Loss: {loss}")
 
         # validate model
         correct_train = 0
@@ -260,20 +234,18 @@ def main(args):
         margins=False,
     )
 
-    # plot confusion matrix
+    # save confusion matrix and accuracy to file
     plt.figure(figsize=(10, 7))
     sns.heatmap(confusion_matrix, annot=True)
     plt.savefig(
         f"{args.outputdir}/results/ensemble-{args.model}-{seed}-confusion_matrix.png"
     )
-
-    # save confusion matrix and accuracy to file
     confusion_matrix.to_csv(
         f"{args.outputdir}/results/ensemble-{args.model}-{seed}-confusion_matrix.csv"
     )
 
     # save model
-    model.save(f"{args.outputdir}/pretrained/ensemble-{args.model}-{seed}-model.pth")
+    ensemble.save(f"{args.outputdir}/pretrained/ensemble-{args.model}-{seed}-model.pth")
 
 
 if __name__ == "__main__":

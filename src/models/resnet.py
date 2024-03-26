@@ -7,16 +7,15 @@ import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 from tqdm import tqdm
-import torch.nn.functional as F
 
 
 class ResNet50(nn.Module):
     def __init__(self, num_classes=10, lr=0.001):
         super(ResNet50, self).__init__()
-        resnet = torchvision.models.resnet50(pretrained=True)
+        resnet = torchvision.models.resnet18(pretrained=True)
         self.features = nn.Sequential(*list(resnet.children())[:-2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(2048, num_classes)
+        self.fc = nn.Linear(512, num_classes)
         self.criterion = torch.nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
@@ -72,25 +71,21 @@ def main(args):
             cinic_directory + "train",
             transform=transforms.Compose(
                 [
-                    transforms.RandomHorizontalFlip(),  # Randomly flip the image horizontally
-                    transforms.RandomRotation(
-                        degrees=30
-                    ),  # Randomly rotate the image by up to 30 degrees
+                    transforms.RandomHorizontalFlip(),
+                    transforms.RandomRotation(degrees=30),
                     transforms.RandomApply(
                         [
                             transforms.Lambda(
                                 lambda img: transforms.functional.adjust_sharpness(
                                     img, sharpness_factor=2.0
                                 )
-                            ),  # Increase edge sharpness
+                            ),
                         ],
                         p=0.25,
-                    ),  # random sharpness
+                    ),
                     transforms.RandomApply(
                         [
-                            transforms.GaussianBlur(
-                                kernel_size=3
-                            ),  # Apply Gaussian blur
+                            transforms.GaussianBlur(kernel_size=3),
                         ],
                         p=0.25,
                     ),
@@ -162,7 +157,9 @@ def main(args):
         )
 
         with open(f"{args.outputdir}/results/accuracy.txt", "a") as f:
-            f.write(f"resnet,{seed},{epoch},{correct / total}")
+            f.write(
+                f"resnet,{seed},{epoch},{correct_train / total_train},{correct_valid / total_valid}\n"
+            )
     # test model
     y_true = []
     y_pred = []
@@ -177,12 +174,11 @@ def main(args):
         pd.Series(y_pred, name="Predicted"),
         margins=False,
     )
-    # plot confusion matrix
+    # save confusion matrix and accuracy to file
     plt.figure(figsize=(10, 7))
     sns.heatmap(confusion_matrix, annot=True)
     plt.savefig(f"{args.outputdir}/results/resnet-{seed}-confusion_matrix.png")
 
-    # save confusion matrix and accuracy to file
     confusion_matrix.to_csv(
         f"{args.outputdir}/results/resnet-{seed}-confusion_matrix.csv"
     )
